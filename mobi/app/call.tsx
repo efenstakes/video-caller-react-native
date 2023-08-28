@@ -49,19 +49,20 @@ const Home = () => {
     useEffect(() => {
         console.log("Fist useEffect socket is ", socket)
 
+        // ensure that the peer cnnection is not null
         checkPeerConnection()
 
+        // when remote user disconnects, end call
+        // TODO we can show an alert before we quit
         cachedLocalPC.current.oniceconnectionstatechange = () => {
             if (cachedLocalPC.current.iceConnectionState === 'disconnected' || cachedLocalPC.current.iceConnectionState === 'failed') {
                 // Remote user disconnected
-                console.log('====================================');
-                console.log("Remote user disconnected");
-                console.log('====================================');
 
                 endCallCb()
             }
-          };
+        };
 
+        // ensure that we have a socket
         if( !socket ) {
             console.log("no socket")
             // return
@@ -76,15 +77,8 @@ const Home = () => {
         })
 
         // Listen for remote answer
+        // emitted when user accepts call
         socket.on("call-accepted", async ({ answer })=> {
-            console.log('====================================');
-            console.log('====================================');
-            console.log('====================================');
-            console.log("from ", receiver, " to ", name)
-            console.log("call accepted answer ", answer)
-            console.log('====================================');
-            console.log('====================================');
-            console.log('====================================');
 
             setEvents((state)=> {
                 return [
@@ -102,11 +96,9 @@ const Home = () => {
                     })
                     return
                 }
-                const rtcSessionDescription = new RTCSessionDescription(answer);
 
-                console.log('====================================');
-                console.log("useEffect :: socket.on call-accepted offer is ", offer);
-                console.log('====================================');
+                // create answer & set it
+                const rtcSessionDescription = new RTCSessionDescription(answer);
 
                 await cachedLocalPC.current.setRemoteDescription(rtcSessionDescription)
 
@@ -133,37 +125,23 @@ const Home = () => {
             }
         })
 
+        // when user denies call, this is called
+        // we go back and clean up
         socket?.on("call-denied", ({ from })=> {
-
-            console.log('====================================');
-            console.log("call ended by ", from);
-            console.log('====================================');
 
             endCallCb()
         })
 
 
         // when other user leaves
+        // we go back and clean up
         socket?.on("left-call", ({ from, })=> {
-
-            console.log('====================================');
-            console.log("call ended by ", from);
-            console.log('====================================');
 
             endCallCb()
         })
     
-        // when answered, add candidates to peer 
+        // when peer sends candidates, add them to peer connection
         socket.on("ice-candidate", async ({ candidate })=> {
-            console.log('====================================');
-            console.log('====================================');
-            console.log('====================================');
-            console.log("useEffect :: got ice-candidate from SIGNAL candidate ", candidate)
-            console.log("useEffect :: from ", receiver, " to ", name)
-            console.log("useEffect :: cachedLocalPC ", cachedLocalPC)
-            console.log('====================================');
-            console.log('====================================');
-            console.log('====================================');
 
             setEvents((state)=> {
                 return [ ...state, "Got ice candidate from "+ receiver ]
@@ -193,6 +171,7 @@ const Home = () => {
         // initialize our stream
         startLocalStream({ name: name, receiver, })
 
+        // clean-up
         return ()=> {
 
             socket?.off('connect', null);
@@ -222,13 +201,14 @@ const Home = () => {
         }
     }, [])
 
-
+    // if peer connection is null, we set it
     const checkPeerConnection = ()=> {
         if (!cachedLocalPC.current) {
             cachedLocalPC.current = new RTCPeerConnection(configuration);
         }
     }
 
+    // initialize streams
     const startLocalStream = async ({ name, receiver }) => {
         checkPeerConnection()
         
@@ -262,16 +242,8 @@ const Home = () => {
             })
             
 
-
-            console.log('====================================');
-            console.log('====================================');
-            console.log('====================================');
-            console.log("startLocalStream :: about to add tracks to peer connection ", localStream?.current)
-            console.log("startLocalStream :: about to add tracks to peer connection ", localStream?.current?.getTracks())
-            console.log('====================================');
-            console.log('====================================');
-            console.log('====================================');
-
+            // add our local tracks to peer connection
+            // they will be shared with remote user
             localStream.current?.getTracks().forEach((track) => {
                 
                 try {
@@ -283,26 +255,13 @@ const Home = () => {
                 }
             })
 
+            // when we get our candidates, we send them to remote user via signalling server
             cachedLocalPC.current.addEventListener("icecandidate", (e: any) => {
-                console.log('====================================');
-                console.log('====================================');
-                console.log('====================================');
-                console.log("startLocalStream :: got ice candidate name ", name, " candidate ", e)
-                console.log('====================================');
-                console.log('====================================');
-                console.log('====================================');
 
                 setEvents((state)=> {
                     return [ ...state, "startLocalStream :: got ice candidate name "+ name +" candidate " ]
                 })
                 if (!e.candidate) {
-                    console.log('====================================');
-                    console.log('====================================');
-                    console.log('====================================');
-                    console.log("startLocalStream :: No final candidate!");
-                    console.log('====================================');
-                    console.log('====================================');
-                    console.log('====================================');
                     return;
                 }
                 
@@ -310,20 +269,8 @@ const Home = () => {
                 socket.emit("ice-candidate", { from: name, to: receiver, candidate: e?.candidate })
             });
 
+            // when we get remote user track, we set it as our remote stream and display it
             cachedLocalPC.current.ontrack = (e: any) => {
-                console.log('====================================');
-                console.log('====================================');
-                console.log('====================================');
-                console.log("startLocalStream :: got remote stream ", e)
-                console.log('====================================');
-                console.log('====================================');
-                console.log('====================================');
-                console.log('====================================');
-                // const newStream = new MediaStream();
-                // e.streams[0].getTracks().forEach((track) => {
-                //     newStream.addTrack(track);
-                // });
-                // setRemoteStream(newStream);
 
                 setEvents((state)=> {
                     return [ ...state, "startLocalStream:: Got remote track from "+ receiver ]
@@ -332,8 +279,6 @@ const Home = () => {
                 if (e.track.kind === 'video') {
                     setRemoteStream(e.streams[0]);
                 }
-
-                // setRemoteStream(e.streams[0])
             };
 
 
@@ -351,14 +296,6 @@ const Home = () => {
                 joinCall({ offer, })
             }
         } catch(e) {
-
-            console.log('====================================');
-            console.log('====================================');
-            console.log('====================================');
-            console.log("startLocalStream error :: could not start stream ", e)
-            console.log('====================================');
-            console.log('====================================');
-            console.log('====================================');
         }
     }
 
@@ -367,19 +304,12 @@ const Home = () => {
     const startCall = async (receiver) => {
         checkPeerConnection()
 
+        // create offer to send to the remote user
         const offer = await cachedLocalPC.current.createOffer(null)
         await cachedLocalPC.current.setLocalDescription(offer)
     
         // start call and send offer over sockets
         socket.emit("start-call", { to: receiver, offer, })
-
-        console.log('====================================');
-        console.log('====================================');
-        console.log('====================================');
-        console.log("startCall :: Call ", receiver, " socket is ", socket)
-        console.log('====================================');
-        console.log('====================================');
-        console.log('====================================');
 
         setEvents((state)=> {
             return [ ...state, "Making Call to "+ receiver ]
@@ -391,10 +321,7 @@ const Home = () => {
     const joinCall = async ({ offer }) => {
         checkPeerConnection()
 
-        console.log('====================================');
-        console.log("joinCall offer is ", offer);
-        console.log('====================================');
-
+        // set remote description, create an answer & send it to remote user via signalling server
         await cachedLocalPC.current.setRemoteDescription(new RTCSessionDescription(offer));
 
         // create answer
@@ -407,17 +334,11 @@ const Home = () => {
     }
 
     
-      const switchCamera = async () => {
+    // TODO :: create logic to renegotiate the webrtc connection
+    // signalling server already has 'offer' & 'offer-answer' to facilitate the process
+    const switchCamera = async () => {
 
         if( !localStream.current ) {
-
-            console.log('====================================');
-            console.log('====================================');
-            console.log('====================================');
-            console.log("switchCamera:: Error no localStream  ", localStream.current)
-            console.log('====================================');
-            console.log('====================================');
-            console.log('====================================');
             return
         }
 
@@ -431,54 +352,26 @@ const Home = () => {
         localStream.current = newStream
         
         setIsShowingFrontView(!isShowingFrontView)
-      };
+    }
     
-      // Mutes the local's outgoing audio
-      const toggleMute = () => {
-        // if (!remoteStream) {
-        //   return;
-        // }
+    // Mutes the local's outgoing audio
+    const toggleMute = () => {
         localStream.current?.getAudioTracks().forEach((track) => {
           track.enabled = !track.enabled;
           setIsMuted(!track.enabled);
         });
-      };
+    }
     
-      const toggleCamera = () => {
+    const toggleCamera = () => {
         if( !localStream.current ) {
-
-            console.log('====================================');
-            console.log('====================================');
-            console.log("toggleCamera :: no local stream ", localStream.current);
-            console.log("toggleCamera ", localStream.current);
-            console.log('====================================');
-            console.log('====================================');
 
             return
         }
 
-        console.log('====================================');
-        console.log('====================================');
-        console.log("toggleCamera ", localStream.current?.getVideoTracks());
-        console.log('====================================');
-        console.log('====================================');
-
         const videoTrack = localStream.current?.getVideoTracks()[0]
         videoTrack.enabled = !isCameraOff
         setIsCameraOff(!isCameraOff);
-
-        // localStream.current.getVideoTracks()[0].enabled = false
-
-        console.log('====================================');
-        console.log('====================================');
-        // console.log("videoTrack ", videoTrack)
-        console.log('====================================');
-        console.log('====================================');
-        // localStream.current?.getVideoTracks().forEach((track) => {
-        //   track.enabled = !track.enabled;
-        //   setIsCameraOff(!isCameraOff);
-        // });
-      }
+    }
     
 
     async function endCall() {
@@ -631,13 +524,11 @@ const Home = () => {
             <View style={styles.callControlsContainer}>
 
                 {/* mute / unmute */}
-                {/* microphone-off */}
                 <TouchableOpacity onPress={toggleMute} style={{ ...styles.iconButton, }}>
                     <MaterialCommunityIcons name={ isMuted ? "microphone-outline" : "microphone-off" } size={18} color="white" />
                 </TouchableOpacity>
 
                 {/* close / open video */}
-                {/* video-off-outline | video-outline */}
                 <TouchableOpacity onPress={toggleCamera} style={{ ...styles.iconButton, }}>
                     <MaterialCommunityIcons name={ isCameraOff ? "video-off-outline" : "video-outline" } size={18} color="white" />
                 </TouchableOpacity>
