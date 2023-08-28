@@ -103,6 +103,11 @@ const Home = () => {
                     return
                 }
                 const rtcSessionDescription = new RTCSessionDescription(answer);
+
+                console.log('====================================');
+                console.log("useEffect :: socket.on call-accepted offer is ", offer);
+                console.log('====================================');
+
                 await cachedLocalPC.current.setRemoteDescription(rtcSessionDescription)
 
                 setEvents((state)=> {
@@ -386,6 +391,9 @@ const Home = () => {
     const joinCall = async ({ offer }) => {
         checkPeerConnection()
 
+        console.log('====================================');
+        console.log("joinCall offer is ", offer);
+        console.log('====================================');
 
         await cachedLocalPC.current.setRemoteDescription(new RTCSessionDescription(offer));
 
