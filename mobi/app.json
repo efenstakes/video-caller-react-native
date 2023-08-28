@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "scheme": "acme",
+    "web": {
+      "bundler": "metro"
+    },
+    "name": "mobi",
+    "slug": "mobi",
+    "plugins": [
+      "@react-native-google-signin/google-signin",
+      "@config-plugins/react-native-webrtc"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "153a22ab-3be7-4eaf-adb2-33b81dcf16c9"
+      }
+    },
+    "android": {
+      "googleServicesFile": "./google-services.json",
+      "package": "com.helixinc.mobi"
+    }
+  }
+}
